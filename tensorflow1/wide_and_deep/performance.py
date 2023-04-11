@@ -306,7 +306,7 @@ if __name__ == "__main__":
                         required=False,
                         default='./data')
     parser.add_argument('--batch_size',
-                        help='Batch size to train. Default is 512',
+                        help='batch size',
                         type=int,
                         default=8000)
     parser.add_argument('--inter',

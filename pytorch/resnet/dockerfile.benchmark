@@ -6,8 +6,10 @@ RUN sed -i -E 's/(security|archive|ports).ubuntu.com/mirrors.ustc.edu.cn/g' /etc
 RUN apt update && apt install -y python3-pip
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN pip config set global.index-url https://pypi.douban.com/simple/
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple/
+RUN pip install --no-dependencies torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install torchvision
+
 
 RUN set -eux; \
     arch="$TARGETPLATFORM"; \
