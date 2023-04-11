@@ -1,0 +1,33 @@
+FROM ubuntu:22.04
+
+ARG TARGETPLATFORM
+
+RUN sed -i -E 's/(security|archive|ports).ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+RUN apt update && apt install -y python3-pip
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN pip config set global.index-url https://pypi.douban.com/simple/
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+RUN set -eux; \
+    arch="$TARGETPLATFORM"; \
+    case "$arch" in \
+        'linux/amd64') \
+            pip install --no-cache-dir intel_extension_for_pytorch \
+        ;; \
+        'linux/arm64') \
+            echo "Not support ipex." \
+        ;; \
+    esac;
+
+WORKDIR /tmp
+COPY *.py ./
+COPY data ./data
+
+ENV target_arch=$TARGETPLATFORM
+ENTRYPOINT set -aux; \
+    if [ "${target_arch}" = "linux/amd64" ]; then \
+        python normal_infer.py && python jit_infer.py && python ipex_infer.py && python ipex_jit_infer.py ; \
+    else \
+        python normal_infer.py && python jit_infer.py ; \
+    fi
