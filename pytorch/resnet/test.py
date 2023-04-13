@@ -1,152 +1,11 @@
 import time
 import torch
+import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights
-import numpy as np
-from PIL import Image
 import argparse
 import os
-import copy
 
-class PerfResnet:
-    def __init__(self, model, input_x):
-        self._model = model
-        self._input = input_x
-    
-    def normal_inference(self):
-        print("Normal:")
-        self._model.eval()
-
-        thp_lst = []
-        with torch.no_grad():
-            # warm up
-            for _ in range(3):
-                self._model(self._input)
-            
-            for i in range(10):
-                s = time.time()
-                pred = self._model(self._input)
-                e = time.time()
-                thp_lst.append(args.batch / (e - s))
-
-        thp_lst.sort()
-        print(thp_lst[len(thp_lst)//2])
-
-    def jit_inference(self):
-        print("JIT:")
-        self._model.eval()
-        model = copy.deepcopy(self._model)
-        
-        traced_model = torch.jit.trace(model, self._input)
-        traced_model = torch.jit.freeze(traced_model)
-        traced_model = torch.jit.optimize_for_inference(traced_model)
-        
-        thp_lst = []
-        
-        # warm up
-        for i in range(3):
-            traced_model(self._input)
-
-        for i in range(10):
-            s = time.time()
-            pred = traced_model(self._input)
-            e = time.time()
-            thp_lst.append(args.batch / (e - s))
-        
-        thp_lst.sort()
-        print(thp_lst[len(thp_lst)//2])
-
-    def ipex_inference(self):
-        print("IPEX:")
-        model = copy.deepcopy(self._model)
-
-        import intel_extension_for_pytorch as ipex
-        model = ipex.optimize(model, level="O1")
-
-        thp_lst = []
-        with torch.no_grad():
-            # warm up
-            for _ in range(3):
-                model(self._input)
-            
-            for i in range(10):
-                s = time.time()
-                pred = model(self._input)
-                e = time.time()
-                thp_lst.append(args.batch / (e - s))
-
-        thp_lst.sort()
-        print(thp_lst[len(thp_lst)//2])
-
-    def ipex_jit_inference(self):
-        print("IPEX + JIT:")
-        self._model.eval()
-        model = copy.deepcopy(self._model)
-
-        import intel_extension_for_pytorch as ipex
-        model = ipex.optimize(model, level="O1")
-
-        with torch.no_grad():
-            traced_model = torch.jit.trace(model, self._input)
-            traced_model = torch.jit.freeze(traced_model)
-            # traced_model = torch.jit.optimize_for_inference(traced_model)
-            
-            thp_lst = []
-
-            # warm up
-            for i in range(3):
-                traced_model(self._input)
-
-            for i in range(10):
-                s = time.time()
-                pred = traced_model(self._input)
-                e = time.time()
-                thp_lst.append(args.batch / (e - s))
-            
-        thp_lst.sort()
-        print(thp_lst[len(thp_lst)//2])
-
-    def print_model(self):
-        self._model.eval()
-
-        # import intel_extension_for_pytorch as ipex
-        # model = ipex.optimize(self._model)
-        # print(model)
-
-        # traced_model = torch.jit.trace(model, self._input)
-        # traced_model = torch.jit.freeze(traced_model)
-
-        # with torch.no_grad():
-        #     for i in range(3):
-        #         traced_model(self._input)
-
-        # print(traced_model.graph_for(self._input))
-
-        pass
-    
-    def profiling(self):
-        import intel_extension_for_pytorch as ipex
-        from torch.profiler import profile, ProfilerActivity
-
-        model = self._model.eval()
-        # model = ipex.optimize(model, level="O0")
-        # print(model)
-        # _convert_convNd_weight_memory_format(model)
-
-        with torch.no_grad():
-            traced_model = torch.jit.trace(model, self._input)
-            # traced_model = torch.jit.freeze(traced_model)
-            # traced_model = torch.jit.optimize_for_inference(traced_model)
-
-            for i in range(3):
-                pred = traced_model(self._input)
-                # model(self._input)
-
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                pred = traced_model(self._input)
-                # model(self._input)
-        
-        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=15, top_level_events_only=False))
-
+from utils import load_image
 
 
 def tensor_to_channels_last_1d(t):
@@ -191,22 +50,49 @@ def _convert_convNd_weight_memory_format(module):
         _convert_convNd_weight_memory_format(child)
 
 
-def load_image():
-    img = Image.open("data/ILSVRC2012_val_00000002.JPEG").convert("RGB")
-    resized_img = img.resize((224, 224))
-    img_data = np.asarray(resized_img).astype("float32")
-    img_data = np.transpose(img_data, (2, 0, 1))  # CHW
+def test(model, x):
+    import intel_extension_for_pytorch as ipex
+    from torch.profiler import profile, ProfilerActivity
 
-    # Normalize according to the ImageNet input specification
-    imagenet_mean = np.array([0.485, 0.456, 0.406]).reshape((3, 1, 1))
-    imagenet_stddev = np.array([0.229, 0.224, 0.225]).reshape((3, 1, 1))
-    norm_img_data = (img_data / 255 - imagenet_mean) / imagenet_stddev
+    model = model.eval()
+    model = ipex.optimize(model, level="O1")
+    # print(model)
+    # _convert_convNd_weight_memory_format(model)
 
-    # Add the batch dimension, as we are expecting 4-dimensional input: NCHW
-    img_data = np.expand_dims(norm_img_data, axis=0).repeat(args.batch, axis=0)
-    x = torch.from_numpy(img_data).to(torch.float32)
+    with torch.no_grad():
+        traced_model = torch.jit.trace(model, x)
+        # print(traced_model.graph)
 
-    return x
+        traced_model = torch.jit.freeze(traced_model)
+        # traced_model = torch.jit.optimize_for_inference(traced_model)
+
+        for i in range(2):
+            pred = traced_model(x)
+            # model(x)
+        
+        # print(traced_model.graph)
+
+        print("Profiling...")
+        with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+            traced_model(x)
+    #         # model(x)
+    
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
+
+
+class net_1(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.inplanes = 64
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+    
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        return x
 
 
 if __name__ == "__main__":
@@ -215,15 +101,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print("Built with oneDNN:", torch.backends.mkldnn.is_available())
 
-    model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-    x = load_image()
-    perf_resnet = PerfResnet(model, x)
+    x = load_image(args.batch)
 
-    perf_resnet.normal_inference()
-    perf_resnet.ipex_inference()
-    perf_resnet.jit_inference()
-    perf_resnet.ipex_jit_inference()
+    # model = net_1()
+    model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+    test(model, x)
+    # perf(model, x)
+
     # perf_resnet.print_model()
     # perf_resnet.profiling()
 
 
+# 
