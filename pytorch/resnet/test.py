@@ -51,11 +51,11 @@ def _convert_convNd_weight_memory_format(module):
 
 
 def test(model, x):
-    import intel_extension_for_pytorch as ipex
-    from torch.profiler import profile, ProfilerActivity
+    # import intel_extension_for_pytorch as ipex
+    # from torch.profiler import profile, ProfilerActivity
 
     model = model.eval()
-    model = ipex.optimize(model, level="O1")
+    # model = ipex.optimize(model, level="O1")
     # print(model)
     # _convert_convNd_weight_memory_format(model)
 
@@ -66,18 +66,18 @@ def test(model, x):
         traced_model = torch.jit.freeze(traced_model)
         # traced_model = torch.jit.optimize_for_inference(traced_model)
 
-        for i in range(2):
+        for i in range(3):
             pred = traced_model(x)
             # model(x)
         
         # print(traced_model.graph)
 
-        print("Profiling...")
-        with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-            traced_model(x)
+        # print("Profiling...")
+        # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+            # traced_model(x)
     #         # model(x)
     
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
+    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
 
 
 class net_1(nn.Module):
@@ -94,6 +94,16 @@ class net_1(nn.Module):
         x = self.relu(x)
         return x
 
+class net_2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.inplanes = 64
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=3, stride=3, padding=2, bias=False)
+    
+    def forward(self, x):
+        x = self.conv1(x)
+        return x
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -104,12 +114,10 @@ if __name__ == "__main__":
     x = load_image(args.batch)
 
     # model = net_1()
-    model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+    model = net_2()
+    # model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
     test(model, x)
     # perf(model, x)
 
     # perf_resnet.print_model()
     # perf_resnet.profiling()
-
-
-# 

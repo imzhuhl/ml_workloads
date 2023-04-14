@@ -4,7 +4,7 @@ import torch
 
 
 def load_image(batch_size):
-    img = Image.open("data/ILSVRC2012_val_00000002.JPEG").convert("RGB")
+    img = Image.open("img/ILSVRC2012_val_00000002.JPEG").convert("RGB")
     resized_img = img.resize((224, 224))
     img_data = np.asarray(resized_img).astype("float32")
     img_data = np.transpose(img_data, (2, 0, 1))  # CHW
