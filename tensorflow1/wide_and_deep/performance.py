@@ -237,7 +237,7 @@ def inference():
     type_enum_list.extend([tf.string.as_datatype_enum for i in range(26)])
 
     # read some real data
-    test_file = os.path.join(args.data_location, "samples.csv")
+    test_file = os.path.join(args.data_location, "eval.csv")
     no_of_test_examples = sum(1 for line in open(test_file))
     print("Numbers of test dataset is {}".format(no_of_test_examples))
     f_dict = {}
