@@ -33,7 +33,7 @@ typedef struct __tile_config {
 
 
 int main() {
-  std::vector<uint16_t> data(32);
+  std::vector<uint16_t> data(1024);
   for (size_t i = 0; i < data.size(); i++) {
     data[i] = i;
   }
@@ -55,7 +55,7 @@ int main() {
   }
   _tile_loadconfig(&cfg);
 
-  // _tile_loadd(0, pa, 1);
+  _tile_loadd(0, pa, 2);
 
   return 0;
 }
