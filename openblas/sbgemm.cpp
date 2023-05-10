@@ -110,6 +110,11 @@ int run_sbgemm(int *mat_size, bool verbose) {
 }
 
 int main(int argc, char **argv) {
+#if defined (__x86_64__)
+  if (support_amx_bf16()) {
+    set_tiledata_use();
+  }
+#endif
   printf("argc: %d\n", argc);
   if (argc <= 1 || argc > 5) {
     printf("Please run:\n1./sbgemm mat_size [-v]\n./sbgemm m n k [-v]");

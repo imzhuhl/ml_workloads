@@ -1,5 +1,6 @@
 #include <immintrin.h>
-
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <iostream>
 #include <vector>
 
@@ -31,8 +32,12 @@ typedef struct __tile_config {
   uint8_t rows[16];
 } __tilecfg;
 
+#define ARCH_REQ_XCOMP_PERM     0x1023
+#define XFEATURE_XTILEDATA      18
 
 int main() {
+  syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
+
   std::vector<uint16_t> data(1024);
   for (size_t i = 0; i < data.size(); i++) {
     data[i] = i;

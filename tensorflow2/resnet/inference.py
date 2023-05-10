@@ -15,16 +15,16 @@ def load_model(inputs, outputs):
     with tf.compat.v1.gfile.FastGFile(model_path, "rb") as f:
         graph_def.ParseFromString(f.read())
 
-    # optimized_graph_def = optimize_for_inference(graph_def, [item.split(':')[0] for item in inputs],
-    #             [item.split(':')[0] for item in outputs], dtypes.float32.as_datatype_enum, False)
-    g = tf.compat.v1.import_graph_def(graph_def, name='')
+    optimized_graph_def = optimize_for_inference(graph_def, [item.split(':')[0] for item in inputs],
+                [item.split(':')[0] for item in outputs], dtypes.float32.as_datatype_enum, False)
+    g = tf.compat.v1.import_graph_def(optimized_graph_def, name='')
 
     return g
 
 
 if __name__ == "__main__":
     input_shape=(224, 224, 3)
-    batch_size = 1
+    batch_size = 128
 
     ################
     # load image 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     )
     ################
 
-    sess_config = tf.ConfigProto()
+    sess_config = tf.compat.v1.ConfigProto()
     sess_config.inter_op_parallelism_threads = 0
     sess_config.intra_op_parallelism_threads = 0
 
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     outputs = ["ArgMax:0"]
     graph = load_model(inputs, outputs)
 
-    with tf.Session(graph=graph, config=sess_config) as sess:
+    with tf.compat.v1.Session(graph=graph, config=sess_config) as sess:
         pred = sess.run(outputs, feed_dict={inputs[0]: processed_image})
-        print(pred)
-    
+        print(pred[0])
+
         best_time = 1000
         for i in range(6):
             s = time.time()
@@ -59,8 +59,9 @@ if __name__ == "__main__":
                 best_time = e - s
             print(f"inference: {e-s} s")
 
+        # pred = sess.run(["resnet_model/final_dense:0"], feed_dict={inputs[0]: processed_image})
+        # print(pred[0][0, :5])
+
     print(f"best inference time: {best_time:.4f}")
     print("TARGET: resnet " + str(batch_size / best_time))  # throught
 
-    # pred = sess.run(["resnet_model/final_dense:0"], feed_dict={inputs[0]: processed_image})
-    # print(pred[0][0, :5])

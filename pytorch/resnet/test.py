@@ -51,7 +51,7 @@ def _convert_convNd_weight_memory_format(module):
 
 
 def test(model, x):
-    # import intel_extension_for_pytorch as ipex
+    import intel_extension_for_pytorch as ipex
     # from torch.profiler import profile, ProfilerActivity
 
     model = model.eval()
@@ -66,9 +66,13 @@ def test(model, x):
         traced_model = torch.jit.freeze(traced_model)
         # traced_model = torch.jit.optimize_for_inference(traced_model)
 
-        for i in range(3):
-            pred = traced_model(x)
-            # model(x)
+        # print("\nAfter freeze\n")
+
+        traced_model(x)
+        traced_model(x)
+        
+        # for i in range(10):
+            # pred = traced_model(x)
         
         # print(traced_model.graph)
 
@@ -87,11 +91,13 @@ class net_1(nn.Module):
         self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(64, 64, 3, padding=1, bias=False)
     
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        x = self.conv2(x)
         return x
 
 class net_2(nn.Module):
@@ -110,11 +116,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=int, default=32, help="batch_size")
     args = parser.parse_args()
     print("Built with oneDNN:", torch.backends.mkldnn.is_available())
-
+    print(f"PID: {os.getpid()}")
     x = load_image(args.batch)
 
-    # model = net_1()
-    model = net_2()
+    model = net_1()
+    # model = net_2()
     # model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
     test(model, x)
     # perf(model, x)
