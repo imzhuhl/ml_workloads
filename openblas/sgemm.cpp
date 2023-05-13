@@ -1,9 +1,10 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <vector>
 
 #include "cblas.h"
-#include "utils.hpp"
+#include "utils.h"
 
 constexpr int REP_CNT = 10;
 
@@ -20,49 +21,39 @@ int native_c(int M, int K, int N, float *A, float *B, float *C) {
   return 0;
 }
 
-int run_sgemm(int *mat_size, bool verbose) {
-  int M, N, K;
-  if (mat_size[0] != 0 && mat_size[1] == 0 && mat_size[2] == 0) {
-    M = mat_size[0];
-    N = M;
-    K = M;
-  } else if (mat_size[0] != 0 && mat_size[1] != 0 && mat_size[2] != 0) {
-    M = mat_size[0];
-    N = mat_size[1];
-    K = mat_size[2];
-  }
-
-  double gflops = 2.0 * M * N * K * 1.0e-09;
+int run_sgemm(int M, int N, int K, bool verbose) {
+  double num_gflop = 2.0 * M * N * K * 1.0e-09;
 
   float alpha = 1;
   float beta = 0;
-  int lda = M;  // col major order
+  int lda = M; // col major order
   int ldb = K;
   int ldc = M;
 
-  float *A = new float[M * K];
-  float *B = new float[K * N];
-  float *C = new float[M * N];
-  float *myc = new float[M * N];
+  std::vector<float> A(M * K);
+  std::vector<float> B(K * N);
+  std::vector<float> C(M * N);
+  std::vector<float> dst_C(M * N);
 
-  fill_array(A, M * K, InitVecFlag::IncreaseByOne);
-  fill_array(B, K * N, InitVecFlag::IncreaseByOne);
-  fill_array(C, M * N, InitVecFlag::Zero);
+  fill_array(A, InitValFlag::IncreaseByOne);
+  fill_array(B, InitValFlag::IncreaseByOne);
+  fill_array(C, InitValFlag::Zero);
 
   /* Time of implementation */
-  double time_best = 99999;
+  double best_gflops = 0;
   for (int rep = 0; rep < REP_CNT; rep++) {
-    copy_array(C, myc, M * N);
+    copy_array(C, dst_C);
     auto start = std::chrono::steady_clock::now();
-    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A,
-                lda, B, ldb, beta, myc, ldc);
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
+                A.data(), lda, B.data(), ldb, beta, dst_C.data(), ldc);
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    printf("%.2lf GFLOPS, %.2lf ms\n", gflops / (elapsed.count() * 1.0e-3),
-           elapsed.count());
-    time_best = std::min(time_best, elapsed.count() * 1.0e-3);
+    double cur_gflops = num_gflop / (elapsed.count() * 1.0e-3);
+    printf("%.2lf GFLOPS, %.2lf ms\n", cur_gflops, elapsed.count());
+
+    best_gflops = cur_gflops > best_gflops ? cur_gflops : best_gflops;
   }
-  printf("TARGET: %.2lf GFLOPS\n", gflops / time_best);
+  printf("TARGET: %.2lf GFLOPS\n", best_gflops);
 
   // native_c(M, K, N, A, B, C);
   // compare_array(C, myc, M * N);
@@ -75,34 +66,41 @@ int run_sgemm(int *mat_size, bool verbose) {
     printf("Matrix C:\n");
     display_matrix(C, M, N);
     printf("Matrix myc:\n");
-    display_matrix(myc, M, N);
+    display_matrix(dst_C, M, N);
   }
-
-  delete[] A;
-  delete[] B;
-  delete[] C;
-  delete[] myc;
 
   return 0;
 }
 
+void bad_args() {
+  std::cerr << "Usage: sgemm m n k [-v]\n"
+               "       sgemm size [-v]\n"
+               "If a single <size> is specified, it is used for all three "
+               "dimensions (m/n/k).\n";
+  throw std::invalid_argument("Incorrect input arguments.");
+}
+
 int main(int argc, char **argv) {
   printf("argc: %d\n", argc);
-  if (argc <= 1 || argc > 5) {
-    printf("Please run:\n1./sbgemm mat_size [-v]\n./sbgemm m n k [-v]");
-    return 0;
-  }
+
   bool verbose = false;
-  int mat_size[3] = {0};
-  int idx = 0;
-  for (int i = 1; i < argc; i++) {
-    if (strcmp("-v", argv[i]) == 0) {
-      verbose = true;
-    } else {
-      mat_size[idx++] = atoi(argv[i]);
-    }
+  int m, n, k;
+  if (strcmp("-v", argv[argc - 1]) == 0) {
+    verbose = true;
+    argc--;
+  }
+  if (argc == 2) {
+    m = n = k = std::atoi(argv[1]);
+  } else if (argc == 4) {
+    m = std::atoi(argv[1]);
+    n = std::atoi(argv[2]);
+    k = std::atoi(argv[3]);
+  } else {
+    bad_args();
   }
 
-  run_sgemm(mat_size, verbose);
+  printf("MatMul: m, n, k: %d, %d, %d\n", m, n, k);
+
+  run_sgemm(m, n, k, verbose);
   return 0;
 }
