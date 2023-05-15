@@ -6,7 +6,7 @@
 #include <iostream>
 #include <vector>
 
-#include "utils.hpp"
+#include "utils.h"
 
 // Define tile config data structure
 // format of memory payload. each field is a byte.

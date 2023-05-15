@@ -1,5 +1,7 @@
 #include "utils.h"
+#include "openblas_config.h"
 
+#include <cstdint>
 #include <iostream>
 #include <random>
 #include <cassert>
@@ -62,6 +64,45 @@ void display_matrix(std::vector<float> &mat, int M, int N) {
     printf("\n");
   }
   printf("\n");
+}
+
+bfloat16 fp32_to_bf16(float src) {
+  uint32_t *a = reinterpret_cast<uint32_t *>(&src);
+  uint16_t b = (*a) >> 16;
+  return *(reinterpret_cast<bfloat16 *>(&b));
+}
+
+bfloat16 round_fp32_to_bf16(float src) {
+  uint32_t *fromptr = reinterpret_cast<uint32_t *>(&src);
+  uint16_t res = (*fromptr >> 16);
+  const uint16_t error = (*fromptr & 0x0000ffff);
+  uint16_t bf_l = res & 0x0001;
+  if ((error > 0x8000) || ((error == 0x8000) && (bf_l != 0))) {
+    res += 1;
+  }
+  return *(reinterpret_cast<bfloat16 *>(&res));
+}
+
+float bf16_to_fp32(bfloat16 src) {
+  uint16_t *a = reinterpret_cast<bfloat16 *>(&src);
+  uint32_t b = *a;
+  b <<= 16;
+  return *(reinterpret_cast<float *>(&b));
+
+}
+
+void array_fp32_to_bf16(std::vector<float> &src, std::vector<bfloat16> &dst) {
+  assert(src.size() == dst.size());
+  for (size_t i = 0; i < src.size(); i++) {
+    dst[i] = fp32_to_bf16(src[i]);
+  }
+}
+
+void array_bf16_to_fp32(std::vector<bfloat16> &src, std::vector<float> &dst) {
+  assert(src.size() == dst.size());
+  for (size_t i = 0; i < src.size(); i++) {
+    dst[i] = bf16_to_fp32(src[i]);
+  }
 }
 
 /**
