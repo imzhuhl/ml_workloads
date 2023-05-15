@@ -14,6 +14,10 @@ target_include_directories(sbgemm PUBLIC ${OPENBLAS_DIR}/include)
 target_link_directories(sbgemm PUBLIC ${OPENBLAS_DIR}/lib)
 target_link_libraries(sbgemm openblas)
 
+add_executable(compare_sgemm_sbgemm compare_sgemm_sbgemm.cpp utils.cpp)
+target_include_directories(compare_sgemm_sbgemm PUBLIC ${OPENBLAS_DIR}/include)
+target_link_directories(compare_sgemm_sbgemm PUBLIC ${OPENBLAS_DIR}/lib)
+target_link_libraries(compare_sgemm_sbgemm openblas)
 
 add_executable(test_amxtile test_amxtile.cpp utils.cpp)
 target_include_directories(test_amxtile PUBLIC ${OPENBLAS_DIR}/include)
