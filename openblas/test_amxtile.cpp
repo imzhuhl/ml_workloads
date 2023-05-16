@@ -49,19 +49,22 @@ int main() {
   int M = 16;
   int N = 32;
 
-  std::vector<float> FA(M * N, 0);
+  std::vector<float> origin(M * N, 0);
   std::vector<bfloat16> A(M * N, 0);
+  std::vector<bfloat16> B(M * N, 0);
+  std::vector<float> FA(M * N, 0);
   std::vector<float> FB(M * N, 0);
 
-  // fill_array(FA, InitValFlag::IncreaseByOne);
-  // array_fp32_to_bf16(FA, A);
-  // array_bf16_to_fp32(A, FB);
-  // display_matrix(FA, M, N);
-  // display_matrix(FB, M, N);
-  // compare_array(FA, FB);
+  fill_array(origin, InitValFlag::IncreaseByOne);
+  array_fp32_to_bf16(origin, A);
 
-  printf("%f\n", bf16_to_fp32(fp32_to_bf16(257)));
+  _tile_loadd(0, A.data(), 64);
+  _tile_stored(0, B.data(), 64);
 
+  array_bf16_to_fp32(A, FA);
+  array_bf16_to_fp32(B, FB);
+  display_matrix(FA, M, N);
+  display_matrix(FB, M, N);
 
   return 0;
 }

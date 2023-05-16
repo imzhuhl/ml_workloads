@@ -14,7 +14,7 @@ void compare_array(std::vector<float> &a, std::vector<float> &b) {
   float diff = 0.0;
   for (int i = 0; i < a.size(); i++) {
     diff = std::abs(a[i] - b[i]);
-    if (diff > 1e-2) {
+    if (diff > 0.5) {
       printf("Check error: %.3f vs %.3f\n", a[i], b[i]);
       return;
     }

@@ -59,16 +59,16 @@ int run_sbgemm(int *mat_size, bool verbose) {
   std::vector<float> C(M * N);
   std::vector<float> dst_C(M * N);
 
-  fill_array(FA, InitValFlag::RandonValue);
-  fill_array(FB, InitValFlag::RandonValue);
+  fill_array(FA, InitValFlag::IncreaseByOne);
+  fill_array(FB, InitValFlag::IncreaseByOne);
   fill_array(C, InitValFlag::Zero);
 
   std::vector<bfloat16> A(M * K);
   std::vector<bfloat16> B(K * N);
-  vec_fp32_to_bf16(FA.data(), A.data(), M * K);
-  vec_fp32_to_bf16(FB.data(), B.data(), K * N);
+  array_fp32_to_bf16(FA, A);
+  array_fp32_to_bf16(FB, B);
 
-  double best_GFOPS = 0.0;
+  double best_gflops = 0.0;
   for (int rep = 0; rep < 10; rep++) {
     copy_array(C, dst_C);
     auto start = std::chrono::steady_clock::now();
@@ -78,10 +78,10 @@ int run_sbgemm(int *mat_size, bool verbose) {
     std::chrono::duration<double, std::milli> elapsed = end - start;
     double dtime = elapsed.count() * 1.0e-3;  // s
     printf("%.2lf GFLOPS, %.2lf ms\n", gflops / dtime, elapsed.count());
-    best_GFOPS = gflops / dtime;
+    best_gflops = gflops / dtime;
   }
 
-  printf("TARGET: %.2lf GFLOP/S\n", best_GFOPS);
+  printf("TARGET: %.2lf GFLOP/S\n", best_gflops);
 
   // sbgemm_native_c(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
   // compare_matrix(C, myc, M, N);

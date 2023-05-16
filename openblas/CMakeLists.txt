@@ -1,25 +1,19 @@
+cmake_minimum_required(VERSION 3.18)
+
 project(OpenBLAS-Test C CXX)
 
 set(OPENBLAS_DIR "/opt/OpenBLAS")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
+include_directories(${OPENBLAS_DIR}/include)
+link_directories(${OPENBLAS_DIR}/lib)
+link_libraries(openblas)
+
 add_executable(sgemm sgemm.cpp utils.cpp)
-target_include_directories(sgemm PUBLIC ${OPENBLAS_DIR}/include)
-target_link_directories(sgemm PUBLIC ${OPENBLAS_DIR}/lib)
-target_link_libraries(sgemm openblas)
 
 add_executable(sbgemm sbgemm.cpp utils.cpp)
-target_include_directories(sbgemm PUBLIC ${OPENBLAS_DIR}/include)
-target_link_directories(sbgemm PUBLIC ${OPENBLAS_DIR}/lib)
-target_link_libraries(sbgemm openblas)
 
 add_executable(compare_sgemm_sbgemm compare_sgemm_sbgemm.cpp utils.cpp)
-target_include_directories(compare_sgemm_sbgemm PUBLIC ${OPENBLAS_DIR}/include)
-target_link_directories(compare_sgemm_sbgemm PUBLIC ${OPENBLAS_DIR}/lib)
-target_link_libraries(compare_sgemm_sbgemm openblas)
 
 add_executable(test_amxtile test_amxtile.cpp utils.cpp)
-target_include_directories(test_amxtile PUBLIC ${OPENBLAS_DIR}/include)
-target_link_directories(test_amxtile PUBLIC ${OPENBLAS_DIR}/lib)
-target_link_libraries(test_amxtile openblas)
