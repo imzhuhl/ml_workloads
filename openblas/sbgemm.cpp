@@ -78,7 +78,8 @@ int run_sbgemm(int *mat_size, bool verbose) {
     std::chrono::duration<double, std::milli> elapsed = end - start;
     double dtime = elapsed.count() * 1.0e-3;  // s
     printf("%.2lf GFLOPS, %.2lf ms\n", gflops / dtime, elapsed.count());
-    best_gflops = gflops / dtime;
+    double cur_gflops = gflops / dtime;
+    best_gflops = cur_gflops > best_gflops ? cur_gflops : best_gflops;
   }
 
   printf("TARGET: %.2lf GFLOP/S\n", best_gflops);

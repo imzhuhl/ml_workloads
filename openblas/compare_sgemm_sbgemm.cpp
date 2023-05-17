@@ -46,16 +46,16 @@ void compare(int *mat_size, bool verbose) {
   std::vector<float> sgemm_C(M * N, 0);
   std::vector<float> sbgemm_C(M * N, 0);
 
-  // fill_array(FA, InitValFlag::RandonValue);
-  // fill_array(FB, InitValFlag::RandonValue);
+  fill_array(FA, InitValFlag::RandonValue);
+  fill_array(FB, InitValFlag::RandonValue);
 
   // debug fill array
-  for (size_t i = 0; i < FA.size(); i++) {
-    FA[i] = 1;
-  }
-  for (size_t i = 0; i < FB.size(); i++) {
-    FB[i] = i % 256;
-  }
+  // for (size_t i = 0; i < FA.size(); i++) {
+  //   FA[i] = i % 256;
+  // }
+  // for (size_t i = 0; i < FB.size(); i++) {
+  //   FB[i] = i % 256;
+  // }
   //
 
   std::vector<bfloat16> A(M * K);
