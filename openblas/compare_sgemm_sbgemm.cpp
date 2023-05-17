@@ -1,9 +1,10 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <vector>
 
 #include "cblas.h"
-#include "utils.hpp"
+#include "utils.h"
 
 void vec_fp32_to_bf16(float *src, bfloat16 *dst, size_t size) {
   for (size_t i = 0; i < size; i++) {
@@ -12,6 +13,13 @@ void vec_fp32_to_bf16(float *src, bfloat16 *dst, size_t size) {
 #else
     dst[i] = *(reinterpret_cast<bfloat16 *>(&src[i]) + 1);
 #endif
+  }
+}
+
+
+void debug_fill_array(std::vector<float> &v) {
+  for (size_t i = 0; i < v.size(); i++) {
+    v[i] = 1;
   }
 }
 
@@ -38,13 +46,22 @@ void compare(int *mat_size, bool verbose) {
   std::vector<float> sgemm_C(M * N, 0);
   std::vector<float> sbgemm_C(M * N, 0);
 
-  fill_array(FA.data(), M * K, InitVecFlag::IncreaseByOne);
-  fill_array(FB.data(), K * N, InitVecFlag::IncreaseByOne);
+  fill_array(FA, InitValFlag::RandonValue);
+  fill_array(FB, InitValFlag::RandonValue);
+
+  // debug fill array
+  // for (size_t i = 0; i < FA.size(); i++) {
+  //   FA[i] = i % 256;
+  // }
+  // for (size_t i = 0; i < FB.size(); i++) {
+  //   FB[i] = i % 256;
+  // }
+  //
 
   std::vector<bfloat16> A(M * K);
   std::vector<bfloat16> B(K * N);
-  vec_fp32_to_bf16(FA.data(), A.data(), M * K);
-  vec_fp32_to_bf16(FB.data(), B.data(), K * N);
+  array_fp32_to_bf16(FA, A);
+  array_fp32_to_bf16(FB, B);
 
   cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
               FA.data(), lda, FB.data(), ldb, beta, sgemm_C.data(), ldc);
@@ -53,16 +70,16 @@ void compare(int *mat_size, bool verbose) {
 
   if (verbose) {
     printf("Matrix A:\n");
-    display_matrix(FA.data(), M, K);
+    display_matrix(FA, M, K);
     printf("Matrix B:\n");
-    display_matrix(FB.data(), K, N);
+    display_matrix(FB, K, N);
     printf("Matrix sgemm_C:\n");
-    display_matrix(sgemm_C.data(), M, N);
+    display_matrix(sgemm_C, M, N);
     printf("Matrix sbgemm_C:\n");
-    display_matrix(sbgemm_C.data(), M, N);
+    display_matrix(sbgemm_C, M, N);
   }
 
-  compare_array(sgemm_C.data(), sbgemm_C.data(), M * N);
+  compare_array(sgemm_C, sbgemm_C);
   
 }
 

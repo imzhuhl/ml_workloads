@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "cblas.h"
-#include "utils.hpp"
+#include "utils.h"
 
 inline uint16_t float_to_bf16(const float v) {
   const uint32_t *fromptr = reinterpret_cast<const uint32_t *>(&v);
@@ -54,36 +54,35 @@ int run_sbgemm(int *mat_size, bool verbose) {
   int ldb = K;
   int ldc = M;
 
-  float *FA = new float[M * K];
-  float *FB = new float[K * N];
-  float *C = new float[M * N];
-  float *myc = new float[M * N];
-  fill_array(FA, M * K, InitVecFlag::RandonValue);
-  fill_array(FB, K * N, InitVecFlag::RandonValue);
-  fill_array(C, M * N, InitVecFlag::Zero);
+  std::vector<float> FA(M * K);
+  std::vector<float> FB(K * N);
+  std::vector<float> C(M * N);
+  std::vector<float> dst_C(M * N);
 
-  // transpose(FA, M, K);
-  // transpose(FB, K, N);
+  fill_array(FA, InitValFlag::IncreaseByOne);
+  fill_array(FB, InitValFlag::IncreaseByOne);
+  fill_array(C, InitValFlag::Zero);
 
-  bfloat16 *A = new bfloat16[M * K];
-  bfloat16 *B = new bfloat16[K * N];
-  vec_fp32_to_bf16(FA, (uint16_t *)A, M * K);
-  vec_fp32_to_bf16(FB, (uint16_t *)B, K * N);
+  std::vector<bfloat16> A(M * K);
+  std::vector<bfloat16> B(K * N);
+  array_fp32_to_bf16(FA, A);
+  array_fp32_to_bf16(FB, B);
 
-  double best_GFOPS = 0.0;
+  double best_gflops = 0.0;
   for (int rep = 0; rep < 10; rep++) {
-    copy_array(C, myc, M * N);
+    copy_array(C, dst_C);
     auto start = std::chrono::steady_clock::now();
-    cblas_sbgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A,
-                 lda, B, ldb, beta, myc, ldc);
+    cblas_sbgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(),
+                 lda, B.data(), ldb, beta, dst_C.data(), ldc);
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     double dtime = elapsed.count() * 1.0e-3;  // s
     printf("%.2lf GFLOPS, %.2lf ms\n", gflops / dtime, elapsed.count());
-    best_GFOPS = gflops / dtime;
+    double cur_gflops = gflops / dtime;
+    best_gflops = cur_gflops > best_gflops ? cur_gflops : best_gflops;
   }
 
-  printf("TARGET: %.2lf GFLOP/S\n", best_GFOPS);
+  printf("TARGET: %.2lf GFLOP/S\n", best_gflops);
 
   // sbgemm_native_c(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
   // compare_matrix(C, myc, M, N);
@@ -96,15 +95,8 @@ int run_sbgemm(int *mat_size, bool verbose) {
     printf("Matrix C:\n");
     display_matrix(C, M, N);
     printf("Matrix myc:\n");
-    display_matrix(myc, M, N);
+    display_matrix(dst_C, M, N);
   }
-
-  delete[] FA;
-  delete[] FB;
-  delete[] A;
-  delete[] B;
-  delete[] C;
-  delete[] myc;
 
   return 0;
 }

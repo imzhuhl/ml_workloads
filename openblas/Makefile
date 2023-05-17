@@ -9,8 +9,14 @@ sgemm: sgemm.cpp utils.hpp
 sbgemm: sbgemm.cpp utils.hpp
 	g++ -O2 sbgemm.cpp $(COMPILE_OPTIONS) -o sbgemm
 
-test: compare_sgemm_sbgemm.cpp utils.hpp
-	g++ -O2 compare_sgemm_sbgemm.cpp $(COMPILE_OPTIONS) -o compare_sgemm_sbgemm
+compare_sgemm_sbgemm: compare_sgemm_sbgemm.cpp utils.hpp
+	g++ -g compare_sgemm_sbgemm.cpp $(COMPILE_OPTIONS) -o compare_sgemm_sbgemm
+
+amx_example: amx_example.cpp
+	g++ -O2 -march=native amx_example.cpp -o amx_example
+
+gemm_amx: gemm_amx.cpp
+	g++ -g -march=native gemm_amx.cpp -o gemm_amx
 
 clean:
-	rm sbgemm sgemm compare_sgemm_sbgemm
+	rm -f sbgemm sgemm compare_sgemm_sbgemm amx_example gemm_amx
