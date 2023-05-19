@@ -99,6 +99,7 @@ void run(int m, int n, int k) {
     std::chrono::duration<double, std::milli> elapsed = end - start;
 
     double cur_gflops = num_gflop / (elapsed.count() * 1.0e-3);
+    printf("%.2lf GFLOPS, %.2lf ms\n", cur_gflops, elapsed.count());
     best_gflops = cur_gflops > best_gflops ? cur_gflops : best_gflops;
   }
 
