@@ -9,6 +9,8 @@
 #include "oneapi/dnnl/dnnl.hpp"
 #include "utils.hpp"
 
+using dt = dnnl::memory::data_type;
+using tag = dnnl::memory::format_tag;
 
 void write_to_dnnl_memory(void *data_ptr, dnnl::memory &mem) {
   dnnl::engine eng = mem.get_engine();
@@ -26,7 +28,7 @@ void write_to_dnnl_memory(void *data_ptr, dnnl::memory &mem) {
 }
 
 
-void run(int m, int n, int k) {
+void run(int m, int n, int k, dt dtype) {
   // create engine
   dnnl::engine engine(dnnl::engine::kind::cpu, 0);
 
@@ -45,11 +47,9 @@ void run(int m, int n, int k) {
   fill_array(b_data, InitValFlag::RandonValue);
 
   // Create memory descriptors and memory objects
-  using dt = dnnl::memory::data_type;
-  using tag = dnnl::memory::format_tag;
-  auto a_md = dnnl::memory::desc(a_dims, dt::f32, tag::any);
-  auto b_md = dnnl::memory::desc(b_dims, dt::f32, tag::any);
-  auto c_md = dnnl::memory::desc(c_dims, dt::f32, tag::any);
+  auto a_md = dnnl::memory::desc(a_dims, dtype, tag::any);
+  auto b_md = dnnl::memory::desc(b_dims, dtype, tag::any);
+  auto c_md = dnnl::memory::desc(c_dims, dtype, tag::any);
 
   auto a_in_md = dnnl::memory::desc(a_dims, dt::f32, tag::ab);
   auto b_in_md = dnnl::memory::desc(b_dims, dt::f32, tag::ab);
@@ -68,15 +68,13 @@ void run(int m, int n, int k) {
 
   // Repack and convert input data.
   auto a_mem = dnnl::memory(matmul_pd.src_desc(), engine);
-  dnnl::reorder(a_in_mem, a_mem).execute(engine_stream, a_in_mem, a_mem);
-
   auto b_mem = dnnl::memory(matmul_pd.weights_desc(), engine);
-  dnnl::reorder(b_in_mem, b_mem).execute(engine_stream, b_in_mem, b_mem);
-
   auto c_mem = dnnl::memory(matmul_pd.dst_desc(), engine);
-
   // Create the primitive.
   auto matmul_prim = dnnl::matmul(matmul_pd);
+
+  dnnl::reorder(a_in_mem, a_mem).execute(engine_stream, a_in_mem, a_mem);
+  dnnl::reorder(b_in_mem, b_mem).execute(engine_stream, b_in_mem, b_mem);
 
   // Primitive arguments.
   std::unordered_map<int, dnnl::memory> matmul_args;
@@ -86,24 +84,23 @@ void run(int m, int n, int k) {
 
   // 
   double num_gflop = 2.0 * m * n * k * 1.0e-09;
-  double best_gflops = 0;
 
   // Warmup executions.
   matmul_prim.execute(engine_stream, matmul_args);
   engine_stream.wait();
 
-  for (int i = 0; i <= 5; i++) {
-    auto start = std::chrono::steady_clock::now();
+  int runs = 10;
+  auto start = std::chrono::steady_clock::now();
+  for (int i = 0; i <= runs; i++) {
     matmul_prim.execute(engine_stream, matmul_args);
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-
-    double cur_gflops = num_gflop / (elapsed.count() * 1.0e-3);
-    printf("%.2lf GFLOPS, %.2lf ms\n", cur_gflops, elapsed.count());
-    best_gflops = cur_gflops > best_gflops ? cur_gflops : best_gflops;
   }
+  engine_stream.wait();
+  auto end = std::chrono::steady_clock::now();
+  std::chrono::duration<double, std::milli> elapsed = end - start;
 
-  printf("TARGET: %.2lf GFLOP/S\n", best_gflops);
+  double avg_time = elapsed.count() / runs;
+  double gflops = num_gflop / (avg_time * 1.0e-3);
+  printf("%.2lf GFLOPS, %.2lf ms\n", gflops, avg_time);
 
 }
 
@@ -136,7 +133,10 @@ int main(int argc, char **argv) {
   }
 
   printf("MatMul: m, n, k: %d, %d, %d\n", m, n, k);
-  run(m, n, k);
+  printf("fp32: ");
+  run(m, n, k, dt::f32);
+  printf("bf16: ");
+  run(m, n, k, dt::bf16);
 
   return 0;
 }
