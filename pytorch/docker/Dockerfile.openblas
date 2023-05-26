@@ -1,0 +1,30 @@
+#### compile stage
+FROM ubuntu:22.04 AS compile-image
+
+RUN sed -i -E 's/(security|archive|ports).ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+RUN apt update && apt install -y build-essential cmake ninja-build git python3-pip wget
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+RUN pip config set global.index-url https://pypi.douban.com/simple/
+RUN python -m pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir astunparse pyyaml typing_extensions numpy cffi \
+        setuptools future six requests dataclasses filelock jinja2 networkx sympy
+
+# Build OpenBLAS
+RUN git clone -b spr_sbgemm_fix https://github.com/imzhuhl/OpenBLAS.git --depth=1
+RUN cd OpenBLAS && BUILD_BFLOAT16=1 DYNAMIC_ARCH=1 USE_OPENMP=1 make -j32 && make PREFIX=/opt/OpenBLAS install
+
+# Build PyTorch
+WORKDIR /root
+WORKDIR pytorch
+
+RUN MAX_JOBS=32 USE_OPENMP=1 USE_DISTRIBUTED=0 BUILD_TEST=0 USE_CUDA=0 USE_FBGEMM=0 \
+    USE_NNPACK=0 USE_QNNPACK=0 USE_XNNPACK=0 python setup.py bdist_wheel
+
+#### runtime image
+FROM ubuntu:22.04 AS runtime-image
+
+COPY --from=compile-image /opt/OpenBLAS /opt/OpenBLAS
+
+

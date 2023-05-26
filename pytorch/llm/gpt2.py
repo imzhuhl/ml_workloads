@@ -2,7 +2,7 @@ import time
 import os
 import torch
 import argparse
-from transformers import BertTokenizerFast, BertModel
+from transformers import GPT2Model, GPT2TokenizerFast
 
 
 class PerfHandler:
@@ -64,10 +64,10 @@ def main():
     parser.add_argument("--autocast", type=str, default=None)
     args = parser.parse_args()
 
-    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
+    tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
+    model = GPT2Model.from_pretrained('gpt2')
 
-    text = ['Paris is the [MASK] of France.' for _ in range(args.batch)]
+    text = ["Once upon a time," for _ in range(args.batch)]
 
     PerfHandler(args, tokenizer, model, text).start_inference()
 
