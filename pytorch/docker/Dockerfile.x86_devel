@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 RUN sed -i -E 's/(security|archive|ports).ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
-RUN apt update && apt install -y build-essential cmake ninja-build python3-pip git wget
+RUN apt update && apt install -y build-essential cmake ninja-build python3-pip git wget bzip2
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
@@ -9,6 +9,17 @@ RUN pip config set global.index-url https://pypi.douban.com/simple/
 RUN python -m pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir astunparse pyyaml typing_extensions numpy cffi \
         setuptools future six requests dataclasses filelock jinja2 networkx sympy
+
+ENV MKL_VERSION=2023.1.0
+ENV MKL_BUILD=46342
+
+# wget -O mkl-static.tar.bz2 https://anaconda.org/intel/mkl-static/2023.1.0/download/linux-64/mkl-static-2023.1.0-intel_46342.tar.bz2
+# wget -O mkl-includ.tar.bz2 https://anaconda.org/intel/mkl-include/2023.1.0/download/linux-64/mkl-include-2023.1.0-intel_46342.tar.bz2
+
+RUN wget -O mkl-static.tar.bz2 https://anaconda.org/intel/mkl-static/${MKL_VERSION}/download/linux-64/mkl-static-${MKL_VERSION}-intel_${MKL_BUILD}.tar.bz2
+RUN wget -O mkl-include.tar.bz2 https://anaconda.org/intel/mkl-include/${MKL_VERSION}/download/linux-64/mkl-include-${MKL_VERSION}-intel_${MKL_BUILD}.tar.bz2
+RUN mkdir mkl-static && tar -xjvf mkl-static.tar.bz2 -C mkl-static && mv mkl-static/lib /opt/intel && rm -rf mkl-static
+RUN mkdir mkl-include && tar -xjvf mkl-include.tar.bz2 -C mkl-include &&
 
 WORKDIR pytorch
 # RUN MAX_JOBS=32 USE_MKLDNN=1 USE_OPENMP=1 USE_DISTRIBUTED=0 python3 setup.py bdist_wheel
