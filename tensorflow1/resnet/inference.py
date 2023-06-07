@@ -24,7 +24,7 @@ def load_model(inputs, outputs):
 
 if __name__ == "__main__":
     input_shape=(224, 224, 3)
-    batch_size = 1
+    batch_size = os.cpu_count()
 
     ################
     # load image 
