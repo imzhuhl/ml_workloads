@@ -6,7 +6,7 @@ RUN apt update && apt install -y build-essential cmake ninja-build git python3-p
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-RUN pip config set global.index-url https://pypi.douban.com/simple/
+RUN pip config set global.index-url https://mirrors.bfsu.edu.cn/pypi/web/simple
 RUN python -m pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir astunparse pyyaml typing_extensions numpy cffi \
         setuptools future six requests dataclasses filelock jinja2 networkx sympy
