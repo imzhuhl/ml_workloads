@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=int, default=32, help="batch_size")
     args = parser.parse_args()
 
-    model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+    model = resnet50()
     x = load_image(args.batch)
 
     print("IPEX:")

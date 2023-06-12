@@ -1,5 +1,6 @@
 import argparse
 import torch
+import torch._dynamo as dynamo
 from torchvision.models import resnet50, ResNet50_Weights
 import time
 from utils import load_image
@@ -10,11 +11,14 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=int, default=32, help="batch_size")
     args = parser.parse_args()
 
-    model = resnet50()
-    x = load_image(args.batch)
+    print(torch._dynamo.list_backends())
 
-    print("Normal:")
+    model = resnet50()
+    x = torch.randn((args.batch, 3, 224, 224))
+
+
     model.eval()
+    model = torch.compile(model)
 
     thp_lst = []
     with torch.no_grad():
@@ -26,6 +30,7 @@ if __name__ == "__main__":
             s = time.time()
             pred = model(x)
             e = time.time()
+            print(f"Time (ms): {(e - s) * 1000}")
             thp_lst.append(args.batch / (e - s))
 
     thp_lst.sort()
