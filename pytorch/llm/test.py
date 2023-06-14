@@ -1,17 +1,15 @@
 import time
-import os
 import torch
-import argparse
-from transformers import BertTokenizerFast, BertForMaskedLM, GPT2Model, GPT2TokenizerFast
 
-def main():
-    # model = BertForMaskedLM.from_pretrained('bert-base-uncased')
-    model = GPT2Model.from_pretrained('gpt2')
+# torch.random.manual_seed(42)
+a = torch.randn((10000, 9))
+# print(a)
 
-    print(model)
-
-    # for _ in range(10):
-    #     model(**encoded_input)
-
-if __name__ == "__main__":
-    main()
+t0 = time.time()
+for _ in range(100):
+# while True:
+    # b = torch.tanh(a)
+    b = torch.softmax(a, -1)
+t1 = time.time()
+print(t1 - t0)
+# print(b)
