@@ -1,76 +1,58 @@
+import sys
 import time
-import os
 import torch
-import argparse
-from transformers import GPT2Model, GPT2TokenizerFast
+from PIL import Image
+import os
+from transformers import GPT2TokenizerFast, GPT2Model
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+device = 'cpu'
+batch = 256
 
 
-class PerfHandler:
-    def __init__(self, args, tokenizer, model, text) -> None:
-        self.batch_size = args.batch
-        self.steps = args.steps
-        self.threads = args.threads
-        self.use_profiling = args.profiling
-        self.autocast = args.autocast
-        self.tokenizer = tokenizer
-        self.model = model
-        self.text = text
+@torch.no_grad()
+def run_model(name, tokenizer, model, input, steps):
+    model.eval()
+    model = torch.compile(model)
 
-    def perf_inference(self):
-        t0 = time.time()
-        for i in range(self.steps):
-            encoded_input = self.tokenizer(self.text, return_tensors='pt')
-            pred = self.model(**encoded_input)
+    def run():
+        encoded_input = tokenizer(input, return_tensors='pt')
+        throughput = []
+        for i in range(steps):
+            t0 = time.time()
+            model(**encoded_input)
+            t1 = time.time()
+            print(f"steps: {i} | time(ms): {(t1 - t0) * 1000:.2f} | throughput: {batch / (t1 - t0):.3f}")
+            throughput.append(batch / (t1 - t0))
+        avg_throughput = sum(throughput) / len(throughput)
+        print(f"avg throughput: {avg_throughput:.3f}")
 
-            # logits = pred.logits
-            # mask_token_index = (encoded_input.input_ids == self.tokenizer.mask_token_id).nonzero(as_tuple=True)
-            # predicted_token_id = logits[mask_token_index].argmax(axis=-1)
-            # result = self.tokenizer.batch_decode(predicted_token_id)
-        t1 = time.time()
+    if CAST:
+        with torch.autocast(device_type=device, dtype=torch.bfloat16):
+            run()
+    else:
+        run()
 
-        print(f"Throughput: {self.steps * self.batch_size / (t1 - t0)}")
+if __name__ == "__main__":
 
+    long_str = "This model is also a PyTorch torch.nn.Module subclass. \
+                Use it as a regular PyTorch Module and refer to the PyTorch \
+                documentation for all matter related to general usage and behavior"
+    
+    short_str = "Paris is the capital of"
+    text = [long_str] * batch
+    
+    CAST = 'cast' in sys.argv
 
-    def profiling(self):
-        from torch.profiler import profile, ProfilerActivity
-        with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-            self.perf_inference()
-        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
+    run_model('gpt2',
+              GPT2TokenizerFast.from_pretrained('gpt2'),
+              GPT2Model.from_pretrained('gpt2'),
+              text, 10)
 
-
-    def start_inference(self):
-        encoded_input = self.tokenizer(self.text, return_tensors='pt')
-        self.model(**encoded_input)
-
-        if self.autocast == "bf16":
-            with torch.autocast(device_type='cpu', dtype=torch.bfloat16):
-                if self.use_profiling:
-                    self.profiling()
-                else:
-                    self.perf_inference()
-        else:
-            if self.use_profiling:
-                self.profiling()
-            else:
-                self.perf_inference()
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--batch", type=int, default=8, help="batch_size")
-    parser.add_argument("--steps", type=int, default=5, help="num_steps")
-    parser.add_argument("--threads", type=int, default=8, help="num_threads")
-    parser.add_argument("--profiling", type=bool, default=False)
-    parser.add_argument("--autocast", type=str, default=None)
-    args = parser.parse_args()
-
-    tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
-    model = GPT2Model.from_pretrained('gpt2')
-
-    text = ["Once upon a time," for _ in range(args.batch)]
-
-    PerfHandler(args, tokenizer, model, text).start_inference()
-
-
-if __name__ == '__main__':
-    main()
+    # from torch.profiler import profile, ProfilerActivity
+    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+    #     run_model('gpt2',
+    #           GPT2TokenizerFast.from_pretrained('gpt2'),
+    #           GPT2Model.from_pretrained('gpt2'),
+    #           text, 2)
+    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
