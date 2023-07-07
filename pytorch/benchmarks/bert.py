@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--dtype", choices=["fp32", "bf16", "amp"], default="fp32")
     parser.add_argument("--opt", choices=["normal", "dynamo", "jit"], default="normal")
     parser.add_argument("--short", action="store_true", help="use short seq")
+    parser.add_argument("--dryrun", action="store_true")
     args = parser.parse_args()
 
     long_str = "This model is also a PyTorch torch.nn.Module subclass. \
@@ -27,8 +28,11 @@ def main():
     else:
         text = [long_str] * args.batch
 
-    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased', local_files_only=not args.dryrun)
+    model = BertModel.from_pretrained('bert-base-uncased', local_files_only=not args.dryrun)
+
+    if args.dryrun:
+        exit(0)
 
     model.eval()
 
@@ -64,9 +68,13 @@ def main():
             run_inference(model, encoded_input)
 
     
-    # from torch.profiler import profile, ProfilerActivity
-    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-    #     run(model, encoded_input)
-    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, top_level_events_only=False))
+        # from torch.profiler import profile, ProfilerActivity
+        # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+        #     if args.dtype == "amp":
+        #         with torch.autocast(device_type='cpu', dtype=torch.bfloat16):
+        #             run_inference(model, encoded_input)
+        #     else:
+        #         run_inference(model, encoded_input)
+        # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=20, top_level_events_only=False))
 
 main()

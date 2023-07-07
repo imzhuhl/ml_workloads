@@ -63,5 +63,15 @@ def main():
         else:
             run_inference(model, encoded_input)
 
+        # from torch.profiler import profile, ProfilerActivity, schedule
+        # my_schedule = schedule(skip_first=5, wait=5, warmup=5, active=1, repeat=5)
+        # with profile(activities=[ProfilerActivity.CPU], schedule=my_schedule) as prof:
+        #     for i in range(20):
+        #         pred = model(**encoded_input)
+        #         prof.step()
+        # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=20, top_level_events_only=False))
 
+
+# from torch._inductor import config
+# config.cpp.enable_kernel_profile = True
 main()
