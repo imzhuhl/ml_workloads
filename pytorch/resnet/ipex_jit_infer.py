@@ -17,7 +17,7 @@ if __name__ == "__main__":
     print("IPEX + JIT:")
     model.eval()
 
-    model = ipex.optimize(model, level="O0")
+    model = ipex.optimize(model, level="O1")
 
     traced_model = torch.jit.trace(model, x)
     traced_model = torch.jit.freeze(traced_model)

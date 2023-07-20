@@ -37,7 +37,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", type=int, default=256, help='batch size')
     parser.add_argument("--steps", type=int, default=10)
-    parser.add_argument("--cast", action="store_true", help="autocast")
+    parser.add_argument("--dtype", choices=["fp32", "bf16", "amp"], default="fp32")
+    parser.add_argument("--opt", choices=["normal", "dynamo", "jit"], default="normal")
     parser.add_argument("--short", action="store_true", help="use short seq")
     args = parser.parse_args()
 
@@ -51,10 +52,43 @@ if __name__ == "__main__":
     else:
         text = [long_str] * args.batch
 
-    run_model('bert-base-uncased',
-              BertTokenizerFast.from_pretrained('bert-base-uncased'),
-              BertModel.from_pretrained('bert-base-uncased'),
-              text)
+    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+    model = BertModel.from_pretrained('bert-base-uncased')
+
+    encoded_input = tokenizer(text, return_tensors='pt')
+    encoded_input = dict(encoded_input)
+    
+    model.eval()
+    
+    def run_inference(model, encoded_input):
+        throughput = []
+
+        for i in range(args.steps):
+            t0 = time.time()
+            pred = model(**encoded_input)
+            t1 = time.time()
+            print(f"steps: {i} | time(ms): {(t1 - t0) * 1000:.2f} | throughput: {args.batch / (t1 - t0):.3f}")
+            if i > 1: throughput.append(args.batch / (t1 - t0))
+        avg_throughput = sum(throughput) / len(throughput)
+        print(f"avg throughput: {avg_throughput:.3f}")
+
+    with torch.no_grad():
+        if args.dtype == "bf16":
+            model = ipex.optimize(model, dtype=torch.bfloat16)
+        else:
+            model = ipex.optimize(model)
+
+        if args.opt == "dynamo":
+            model = torch.compile(model, backend="ipex")
+        elif args.opt == "jit":
+            model = torch.jit.trace(model, example_kwarg_inputs=encoded_input, strict=False)
+            model = torch.jit.freeze(model)
+        
+        if args.dtype == "amp":
+            with torch.autocast(device_type='cpu', dtype=torch.bfloat16):
+                run_inference(model, encoded_input)
+        else:
+            run_inference(model, encoded_input)
     
     # from torch.profiler import profile, ProfilerActivity
     # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:

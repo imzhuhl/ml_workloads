@@ -6,3 +6,4 @@ build
 model
 a.out
 .cache
+*_old

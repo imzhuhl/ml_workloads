@@ -1,6 +1,7 @@
 import sys
 import time
 import torch
+import intel_extension_for_pytorch as ipex
 from PIL import Image
 from transformers import BertTokenizerFast, BertModel
 import os
@@ -9,10 +10,14 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 device = 'cpu'
 batch = 256
 
+CAST = 'cast' in sys.argv
+
 
 def run_model(name, tokenizer, model, input, steps):
     model.eval()
-    model = torch.compile(model)
+    
+    model = ipex.optimize(model)
+    model = torch.compile(model, backend="ipex")
 
     @torch.no_grad()
     def run():
@@ -41,7 +46,6 @@ if __name__ == "__main__":
     short_str = "Paris is the capital of [MASK]."
     text = [long_str] * batch
     
-    CAST = 'cast' in sys.argv
 
     run_model('bert-base-uncased',
               BertTokenizerFast.from_pretrained('bert-base-uncased'),

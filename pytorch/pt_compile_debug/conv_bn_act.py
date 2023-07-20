@@ -23,10 +23,13 @@ model.eval()
 x = torch.randn((2, 3, 32, 32))
 
 # options={'trace.enabled':True, 'trace.graph_diagram':True}
-model = torch.compile(model)
+# model = torch.compile(model)
+
+model = model.to(torch.bfloat16)
+x = x.to(torch.bfloat16)
 
 with torch.no_grad():
-    y = model(x)
-    print(y.shape)
-    
+    # with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+        y = model(x)
+        print(y.shape)
 

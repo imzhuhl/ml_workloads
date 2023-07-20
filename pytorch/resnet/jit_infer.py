@@ -5,32 +5,39 @@ import time
 from utils import load_image
 
 
+def run_model(model, x):
+
+    @torch.no_grad()
+    def run():
+        model(x)
+
+        s = time.time()
+        for i in range(args.steps):
+            pred = model(x)
+        e = time.time()
+        print(args.batch * args.steps / (e - s))
+    
+    if args.bf16:
+        with torch.autocast(device_type='cpu', dtype=torch.bfloat16):
+            run()
+    else:
+        run()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", type=int, default=32, help="batch_size")
+    parser.add_argument("--steps", type=int, default=10, help="steps")
+    parser.add_argument("--bf16", action="store_true", help="use bf16")
     args = parser.parse_args()
 
-    model = resnet50()
-    x = load_image(args.batch)
-
-    print("JIT:")
-    model.eval()
-
+    model = resnet50().eval()
+    x = torch.randn((args.batch, 3, 224, 224))
+    
     traced_model = torch.jit.trace(model, x)
     traced_model = torch.jit.freeze(traced_model)
     traced_model = torch.jit.optimize_for_inference(traced_model)
-    
-    thp_lst = []
-    
-    # warm up
-    for i in range(3):
-        traced_model(x)
 
-    for i in range(10):
-        s = time.time()
-        pred = traced_model(x)
-        e = time.time()
-        thp_lst.append(args.batch / (e - s))
+    print("JIT:")
+    run_model(traced_model, x)
     
-    thp_lst.sort()
-    print(thp_lst[len(thp_lst)//2])
