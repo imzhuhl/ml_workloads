@@ -1,0 +1,42 @@
+FROM quay.io/pypa/manylinux2014_x86_64 AS build-wheel
+
+RUN yum install -y wget
+
+WORKDIR /root/
+COPY docker/torch2.0.1_opt.patch torch2.0.1_opt.patch
+RUN wget https://github.com/pytorch/pytorch/releases/download/v2.0.1/pytorch-v2.0.1.tar.gz && tar -zxvf pytorch-v2.0.1.tar.gz
+
+ENV PATH="/opt/python/cp39-cp39/bin:$PATH"
+
+RUN pip install --no-cache-dir astunparse pyyaml typing_extensions numpy cffi \
+        setuptools future six requests dataclasses filelock jinja2 networkx sympy
+
+ENV MKL_VERSION=2023.1.0
+ENV MKL_BUILD=46342
+
+RUN wget -O mkl-static.tar.bz2 https://anaconda.org/intel/mkl-static/${MKL_VERSION}/download/linux-64/mkl-static-${MKL_VERSION}-intel_${MKL_BUILD}.tar.bz2
+RUN wget -O mkl-include.tar.bz2 https://anaconda.org/intel/mkl-include/${MKL_VERSION}/download/linux-64/mkl-include-${MKL_VERSION}-intel_${MKL_BUILD}.tar.bz2
+RUN mkdir mkl-static && tar -xjvf mkl-static.tar.bz2 -C mkl-static && mv mkl-static/lib /opt/intel && rm -rf mkl-static
+RUN mkdir mkl-include && tar -xjvf mkl-include.tar.bz2 -C mkl-include && mv mkl-include/include /opt/intel && rm -rf mkl-include
+
+WORKDIR pytorch-v2.0.1
+
+RUN patch -p1 < /root/torch2.0.1_opt.patch
+
+# RUN USE_MKLDNN=1 USE_OPENMP=1 CMAKE_PREFIX_PATH=/opt/intel BLAS=MKL CMAKE_CXX_FLAGS="-fno-omit-frame-pointer" python setup.py develop
+RUN PYTORCH_BUILD_VERSION=2.0.1 PYTORCH_BUILD_NUMBER=1 USE_MKLDNN=1 USE_OPENMP=1 \
+    CMAKE_PREFIX_PATH=/opt/intel BLAS=MKL python setup.py bdist_wheel
+
+RUN export LD_LIBRARY_PATH=/root/pytorch-v2.0.1/build/lib:$LD_LIBRARY_PATH && auditwheel repair dist/*.whl && cp wheelhouse/*.whl /root/
+
+
+FROM anolis-registry.cn-zhangjiakou.cr.aliyuncs.com/openanolis/anolisos:8.6 AS runtime-image
+
+WORKDIR /root/
+
+COPY --from=build-wheel /root/*.whl /root/
+
+RUN yum install python39-pip -y
+
+RUN pip3 install --no-cache-dir /root/*.whl && rm -rf /root/*.whl
+
