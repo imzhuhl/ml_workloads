@@ -20,25 +20,38 @@ def run_model(name, tokenizer, model, input, steps):
         for _ in range(steps):
             encoded_input = tokenizer(input, return_tensors='pt')
             model(**encoded_input)
-        print(name + ' ' + str(steps * len(input) / (time.time() - t0)))
+        return steps * len(input) / (time.time() - t0)
 
     if DRYRUN:
         return
 
-    model = torch.compile(model)
     with torch.autocast(device_type='cpu', dtype=torch.bfloat16):
-        run()
+        return run()
 
 
-run_model('bert-base-uncased',
-          BertTokenizerFast.from_pretrained(
-              'bert-base-uncased', local_files_only=not DRYRUN),
-          BertModel.from_pretrained(
-              'bert-base-uncased', local_files_only=not DRYRUN),
-          ['Paris is the capital of [MASK].']*256, 10)
+text = "Use it as a regular PyTorch Module and refer to the PyTorch \
+        documentation for all matter related to general usage and behavior"
 
-run_model('gpt2',
-          GPT2TokenizerFast.from_pretrained(
-              'gpt2', local_files_only=not DRYRUN),
-          GPT2Model.from_pretrained('gpt2', local_files_only=not DRYRUN),
-          ['Once upon a time,']*256, 10)
+data = []
+for _ in range(5):
+    th = run_model('bert-base-uncased',
+            BertTokenizerFast.from_pretrained(
+                'bert-base-uncased', local_files_only=not DRYRUN),
+            BertModel.from_pretrained(
+                'bert-base-uncased', local_files_only=not DRYRUN),
+            ['Paris is the capital of [MASK].']*256, 10)
+    data.append(th)
+print(f"bert avg: {sum(data) / len(data)}")
+print(f"bert max: {max(data)}")
+
+
+data = []
+for _ in range(5):
+    th = run_model('gpt2',
+            GPT2TokenizerFast.from_pretrained(
+                'gpt2', local_files_only=not DRYRUN),
+            GPT2Model.from_pretrained('gpt2', local_files_only=not DRYRUN),
+            ['Once upon a time,']*256, 10)
+    data.append(th)
+print(f"gpt2 avg: {sum(data) / len(data)}")
+print(f"gpt2 max: {max(data)}")
